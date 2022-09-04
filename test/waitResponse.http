@@ -1,0 +1,10 @@
+POST http://127.0.0.1:18968/waitResponse?name=test
+Content-Type: application/json
+
+[
+    {
+        "id": "testButton",
+        "type": "ButtonGroup",
+        "label": "Confirm"
+    }
+]
