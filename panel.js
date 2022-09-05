@@ -41,54 +41,12 @@ export class Panel {
 
 const panelsMap = new Map();
 
-/** @type {BroadcastChannel | undefined} */
-const syncChannel = globalThis.BroadcastChannel ? globalThis.BroadcastChannel("PanelSync") : undefined;
-const syncPanelItem = (action, id, content = undefined) => {
-    if (!syncChannel) {
-        return;
-    }
-    const msg = {
-        action,
-        id,
-        content,
-    };
-    syncChannel.postMessage(msg);
-};
-const initChannel = () => {
-    if (syncChannel) {
-        syncChannel.addEventListener("message", (event) => {
-            const { action, id, content } = event.data;
-            if (action === "create") {
-                createPanel(id, content);
-            } else if (action === "feed") {
-                feedPanel(id, content);
-            } else if (action === "delete") {
-                deletePanel(id);
-            } else if (action === "get") {
-                if (hasPanel(id)) {
-                    syncPanelItem("create", id, getPanelContent(id));
-                }
-            }
-        });
-    }
-};
-initChannel();
-
-export const hasPanel = async (id) => {
+export const hasPanel = (id) => {
     if (panelsMap.has(id)) return true;
-    if (!syncChannel) return false;
-    syncPanelItem("get", id);
-    await sleep(500);
-    return panelsMap.has(id);
+    return false;
 };
 
-export const getPanelContent = async (id) => {
-    if (panelsMap.has(id)) {
-        return panelsMap.get(id).content;
-    }
-    if (!syncChannel) return undefined;
-    syncPanelItem("get", id);
-    await sleep(500);
+export const getPanelContent = (id) => {
     if (panelsMap.has(id)) {
         return panelsMap.get(id).content;
     }
@@ -96,10 +54,8 @@ export const getPanelContent = async (id) => {
 };
 
 export const createPanel = (id, content) => {
-    deletePanel(id);
     const sub = new Panel(id, content);
     panelsMap.set(id, sub);
-    syncPanelItem("create", id, content);
     return sub;
 };
 
@@ -107,7 +63,6 @@ export const feedPanel = (id, content) => {
     if (panelsMap.has(id)) {
         panelsMap.get(id).feedNext(content);
     }
-    syncPanelItem("feed", id, content);
 };
 
 export const deletePanel = (id) => {
@@ -116,5 +71,4 @@ export const deletePanel = (id) => {
         sub.close();
         panelsMap.delete(id);
     }
-    syncPanelItem("delete", id);
 };

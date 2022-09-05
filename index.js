@@ -6,8 +6,8 @@ import { hasPanel, createPanel, feedPanel, deletePanel, getPanelContent } from "
 
 const PORT = 18968;
 // const WAIT_TIMEOUT = 1 * 60 * 1000; //ms
-const WAIT_TIMEOUT = 30 * 1000; //ms
-const MAX_LENGTH = 4 * 1024; // bytes
+const WAIT_TIMEOUT = 60 * 1000; //ms
+const MAX_LENGTH = 256 * 1024; // bytes
 
 await grantOrThrow(
   { name: "net", host: `0.0.0.0:${PORT}` },
@@ -72,7 +72,7 @@ const handler = async (req, _) => {
       if (!name || !content || content.length > MAX_LENGTH) {
         return response400();
       }
-      if (await hasPanel(name)) {
+      if (hasPanel(name)) {
         return response409();
       }
       const contentObject = JSON.parse(content);
@@ -94,7 +94,7 @@ const handler = async (req, _) => {
       if (!name || !content || content.length > MAX_LENGTH) {
         return response400();
       }
-      if (!(await hasPanel(name))) {
+      if (!(hasPanel(name))) {
         return response404();
       }
       const contentObject = JSON.parse(content);
@@ -105,21 +105,25 @@ const handler = async (req, _) => {
       if (!name) {
         return response400();
       }
-      if (!(await hasPanel(name))) {
+      if (!(hasPanel(name))) {
         return response404();
       }
-      const content = await getPanelContent(name);
+      const content = getPanelContent(name);
       return response(200, content);
     } else if (req.method === "GET" && path === "/") {
       const f = await Deno.open("./index.html", { read: true });
-      return new Response(f.readable, {headers: {
+      return new Response(f.readable, {
+        headers: {
           "Content-Type": "text/html",
-      }});
+        }
+      });
     } else if (req.method === "GET" && path === "/help.txt") {
       const f = await Deno.open("./help.txt", { read: true });
-      return new Response(f.readable, {headers: {
+      return new Response(f.readable, {
+        headers: {
           "Content-Type": "text/plain; charset=utf-8",
-      }});
+        }
+      });
     } else {
       return response404();
     }
