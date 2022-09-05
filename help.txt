@@ -1,0 +1,83 @@
+
+======== PanelElement ========
+export interface TextElement {
+    type: "text";
+    text: string;
+    /** render as header | default false */
+    header?: boolean;
+}
+
+export interface ImageElement {
+    type: "img";
+    src: string;
+    /** use iframe to overcome cors | default false */
+    iframe?: boolean;
+}
+
+export interface InputElement {
+    type: "input";
+    id: string;
+    /** input type | default "text" */
+    subtype?: "text" | "password" | "textarea";
+    hint?: string;
+    value?: string;
+}
+
+export interface ButtonsElement {
+    type: "buttons";
+    ids: [string];
+    labels: [string];
+    /** if the button is disabled | default false */
+    disabled?: [boolean] | boolean;
+    /** should we close the page after click | default false */
+    close?: [boolean] | boolean;
+}
+
+export type PanelElement = TextElement | ImageElement | InputElement | ButtonsElement
+
+======== API ========
+POST /waitResponse # wait response
+    ?name=<panel_name> # Panel Name, string
+    body # json, Array<PanelElement>
+return: json object. field as following:
+    "code" is status code, maybe same as http status code.
+    "data" is the response data. contains following fields:
+        "__trigger__" is the button id that has being clicked.
+        "<input_id_0>" is the value of the InputElement correspond to its id.
+        "<input_id_1>" is the value of the InputElement correspond to its id.
+        "<input_id_n>" is the value of the InputElement correspond to its id.
+
+WEBPAGE / # user interface of panel <panel_name>, visit it via browser.
+    ?name=<panel_name> # Panel Name, string
+
+Other internal API are not documented.
+
+======== Example ========
+POST /waitResponse?name=test
+Content-Type: application/json
+
+[
+    {
+        "type": "text",
+        "text": "Please fill the field."
+    },
+    {
+        "type": "input",
+        "id": "user_name_field"
+    },
+    {
+        "type": "buttons",
+        "ids": ["confirm_button"],
+        "labels": ["Confirm"]
+    }
+]
+
+Now visit /?name=test, input something and click confirm button.
+The request above will return:
+{
+    code: 200,
+    data: {
+        "__trigger__": "confirm_button",
+        "user_name_field": "Hello world"
+    }
+}

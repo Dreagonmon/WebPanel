@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Panel</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            /* height: 100%; */
+            background-color: #EEE;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button {
+            padding: 0.5rem;
+            background-color: #08D;
+            color: white;
+            border-width: 0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 0 #0000, 0 0 #0000, var(--tw-shadow);
+        }
+
+        button:disabled {
+            background-color: #BDF;
+            cursor: not-allowed;
+        }
+
+        textarea,
+        input {
+            font-size: 1rem;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            border-style: solid;
+            --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: inset var(--tw-shadow);
+        }
+
+        input,
+        textarea,
+        pre,
+        code {
+            font-family: monospace;
+        }
+
+        dialog {
+            border: none;
+            background-color: transparent;
+            width: 100%;
+            height: 100%;
+        }
+
+        .dialog {
+            border: none;
+            position: fixed;
+            background-color: rgba(0, 0, 0, 0.25);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .dialog_outter {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .dialog_inner {
+            width: fit-content;
+            max-width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        #container {
+            width: 100%;
+            max-width: 640px;
+            padding: 1rem 0;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: auto;
+            align-items: center;
+        }
+
+        .item {
+            width: 100%;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .item>* {
+            width: 100%;
+        }
+
+        .item pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .item .header {
+            font-size: 1.25rem;
+            font-weight: bolder;
+            text-align: center;
+            display: block;
+        }
+
+        .item img {
+            object-fit: contain;
+        }
+
+        .item .iframe-img {
+            overflow: hidden;
+            position: relative;
+        }
+
+        .item .iframe-img a {
+            display: block;
+            position: absolute;
+            cursor: pointer;
+            z-index: 999;
+        }
+
+        .item .iframe-img iframe {
+            z-index: -999;
+        }
+
+        .item img,
+        .item .iframe-img,
+        .item iframe,
+        .item a:not(.header) {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+            border: none;
+        }
+
+        .item textarea {
+            resize: vertical;
+            height: 8rem;
+        }
+
+        .item .buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item .buttons>button:first-child {
+            margin-left: 0;
+        }
+
+        .item .buttons button {
+            flex: 1 1 auto;
+            margin-left: 0.5rem;
+            overflow-x: auto;
+        }
+    </style>
+    <script type="module">
+        /**
+         * PanelElement, see PanelElement.d.ts
+         * @typedef {Object} PanelElement
+         * @property {"text"|"img"|"input"|"buttons"} type type
+         * @property {string} text text
+         * @property {string} src src
+         * @property {string} id id
+         * @property {Array<string>} ids ids
+         * @property {Array<string>} labels labels
+         * @property {boolean} [header=undefined] render as header
+         * @property {boolean} [iframe=undefined] use iframe to overcome cors
+         * @property {"text" | "password" | "textarea"} [subtype=undefined] input type
+         * @property {string} [hint=undefined] hint
+         * @property {string} [value=undefined] value
+         * @property {Array<boolean> | boolean} [disabled=undefined] if the button is disabled
+         * @property {Array<boolean> | boolean} [close=undefined] should we close the page after click
+         */
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        const withLoadingDialog = async (task) => {
+            const dialog = document.querySelector("#dialog_loading");
+            if (dialog.classList.contains("hidden")) dialog.classList.remove("hidden");
+            try {
+                const result = task();
+                if (result instanceof Promise) {
+                    return await result;
+                } else {
+                    return result;
+                }
+            } finally {
+                if (!dialog.classList.contains("hidden")) dialog.classList.add("hidden");
+            }
+        };
+
+        const alertDialog = (message) => {
+            const dialog = document.querySelector("#dialog_alert");
+            const pre = dialog.querySelector("pre");
+            const button = dialog.querySelector("button");
+            pre.innerText = message;
+            if (button.onclick) button.onclick();
+            return new Promise(resolve => {
+                if (dialog.classList.contains("hidden")) dialog.classList.remove("hidden");
+                button.onclick = () => {
+                    button.onclick = undefined;
+                    if (!dialog.classList.contains("hidden")) dialog.classList.add("hidden");
+                    resolve();
+                };
+            });
+        };
+
+        const buttonAction = async function () {
+            /** @type {HTMLButtonElement} */
+            const button = this;
+            const id = button.id;
+            const close = button.getAttribute("data-close") === "true";
+            const response = {
+                "__trigger__": id,
+            };
+            document.querySelectorAll("*[data-input=\"true\"]").forEach((node) => {
+                response[ node.id ] = node.value;
+            });
+            const panelName = new URL(globalThis.location.href).searchParams.get("name");
+            const url = new URL("sendResponse", globalThis.location.href);
+            url.searchParams.set("name", panelName);
+            const resp = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(response),
+            });
+            const respObj = await resp.json();
+            if (respObj.code !== 200) {
+                const ct = document.querySelector("#container");
+                ct.innerHTML = "";
+                await alertDialog("Failed, please try again.");
+                await loadPanelContent();
+                return;
+            }
+            if (close) {
+                document.body.innerHTML = "";
+                document.body.innerText = "Session end, please close this page.";
+                window.close();
+            } else {
+                const ct = document.querySelector("#container");
+                ct.innerHTML = "";
+                await withLoadingDialog(async () => {
+                    await sleep(1000);
+                });
+                await loadPanelContent();
+            }
+            // console.log("click:", id, "close:", close, "resp:", response);
+        };
+
+        /** 
+         * @param {PanelElement} elem elem
+         * @return {HTMLDivElement | undefined}
+         */
+        const parsePanelElement = (elem) => {
+            const divItem = document.createElement("div");
+            divItem.className = "item";
+            try {
+                if (elem.type === "text") {
+                    const pre = document.createElement("pre");
+                    pre.innerText = elem.text;
+                    if (elem.header) {
+                        pre.className = "header";
+                    }
+                    divItem.append(pre);
+                } else if (elem.type === "img") {
+                    if (elem.iframe) {
+                        const divIframeImg = document.createElement("div");
+                        divIframeImg.className = "iframe-img";
+                        const a = document.createElement("a");
+                        a.href = elem.src;
+                        a.rel = "noreferrer";
+                        a.target = "_blank";
+                        const iframe = document.createElement("iframe");
+                        iframe.src = elem.src;
+                        iframe.referrerPolicy = "no-referrer";
+                        iframe.sandbox = "";
+                        divIframeImg.append(a);
+                        divIframeImg.append(iframe);
+                        divItem.append(divIframeImg);
+                    } else {
+                        const a = document.createElement("a");
+                        a.href = elem.src;
+                        a.target = "_blank";
+                        const img = document.createElement("img");
+                        img.src = elem.src;
+                        a.append(img);
+                        divItem.append(a);
+                    }
+                } else if (elem.type === "input") {
+                    let input;
+                    if (elem.subtype === "textarea") {
+                        input = document.createElement("textarea");
+                    } else if (elem.subtype === "password") {
+                        input = document.createElement("input");
+                        input.type = "password";
+                    } else {
+                        input = document.createElement("input");
+                    }
+                    if (elem.hint && typeof elem.hint === "string") {
+                        input.placeholder = elem.hint;
+                    }
+                    if (elem.value && typeof elem.value === "string") {
+                        input.value = elem.value;
+                    }
+                    input.id = elem.id;
+                    input.setAttribute("data-input", "true");
+                    divItem.append(input);
+                } else if (elem.type === "buttons") {
+                    const divButtons = document.createElement("div");
+                    divButtons.className = "buttons";
+                    divItem.append(divButtons);
+                    elem.ids.forEach((id, index) => {
+                        const button = document.createElement("button");
+                        button.id = id;
+                        button.innerText = elem.labels[ index ];
+                        if (
+                            (Array.isArray(elem.disabled) && elem.disabled[ index ]) ||
+                            (typeof elem.disabled === "boolean" && elem.disabled)
+                        ) {
+                            button.disabled = true;
+                        } else {
+                            button.onclick = buttonAction.bind(button);
+                        }
+                        if (
+                            (Array.isArray(elem.close) && elem.close[ index ]) ||
+                            (typeof elem.close === "boolean" && elem.close)
+                        ) {
+                            button.setAttribute("data-close", "true");
+                        } else {
+                            button.setAttribute("data-close", "false");
+                        }
+                        divButtons.append(button);
+                    });
+                    divItem.append(divButtons);
+                } else {
+                    const pre = document.createElement("pre");
+                    pre.innerText = "[Unsupport type of panel element]";
+                    divItem.append(pre);
+                }
+            } catch {
+                const pre = document.createElement("pre");
+                pre.innerText = "[Failed to parse panel element]";
+                divItem.append(pre);
+            }
+            return divItem;
+        };
+
+        const getPanelContent = async (panelName) => {
+            const url = new URL("panelContent", globalThis.location.href);
+            url.searchParams.set("name", panelName);
+            const resp = await fetch(url);
+            const respObj = await resp.json();
+            if (respObj.code === 404) {
+                return [ { type: "text", text: "Panel is not exist." } ];
+            }
+            const list = respObj.data;
+            if (!Array.isArray(list)) {
+                return [ { type: "text", text: "Panel content should be Array<PanelElement>." } ];
+            }
+            if (list.length <= 0) {
+                list.push({ type: "text", text: "Panel is empty." });
+            }
+            return list;
+        };
+
+        const loadPanelContent = async () => {
+            const ct = document.querySelector("#container");
+            const panelName = new URL(globalThis.location.href).searchParams.get("name");
+            if (!panelName) {
+                const divItem = document.createElement("div");
+                divItem.className = "item";
+                const link = document.createElement("a");
+                link.href = "help.txt";
+                link.innerText = "Read Useage Document";
+                link.className = "header";
+                divItem.append(link);
+                ct.append(divItem);
+                return;
+            }
+            const panelContent = await withLoadingDialog(async () => await getPanelContent(panelName));
+            for (const elem of panelContent) {
+                const div = parsePanelElement(elem);
+                if (div) ct.append(div);
+            }
+        };
+
+        window.addEventListener("load", async () => {
+            await loadPanelContent();
+            console.log("ok");
+        });
+    </script>
+</head>
+
+<body>
+    <div id="container"></div>
+
+    <!-- Loading Dialog -->
+    <div class="dialog hidden" id="dialog_loading">
+        <div class="dialog_outter">
+            <div class="dialog_inner">
+                <div style="padding: 1rem; background-color: #FFF; color: #000; border: #000 0.25rem solid;">Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="dialog hidden" id="dialog_alert">
+        <div class="dialog_outter">
+            <div class="dialog_inner">
+                <div class="w-full" style="background-color: #FFF; color: #000; border: #000 0.25rem solid;">
+                    <pre class="w-full" style="padding: 1rem; overflow: auto;"></pre>
+                    <button class="w-full"
+                        style="border: none; border-radius: 0; background-color: #000; color: #FFF;">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

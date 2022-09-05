@@ -3,8 +3,16 @@ Content-Type: application/json
 
 [
     {
-        "id": "testButton",
-        "type": "ButtonGroup",
-        "label": "Confirm"
+        "type": "text",
+        "text": "Please fill the field."
+    },
+    {
+        "type": "input",
+        "id": "user_name_field"
+    },
+    {
+        "type": "buttons",
+        "ids": ["confirm_button"],
+        "labels": ["Confirm"]
     }
 ]

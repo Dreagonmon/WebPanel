@@ -2,5 +2,6 @@ POST http://127.0.0.1:18968/sendResponse?name=test
 Content-Type: application/json
 
 {
-    "__trigger__": "testButton"
+    "__trigger__": "confirm_button",
+    "user_name_field": "Hello world"
 }

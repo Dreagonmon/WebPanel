@@ -12,6 +12,7 @@ const MAX_LENGTH = 4 * 1024; // bytes
 await grantOrThrow(
   { name: "net", host: `0.0.0.0:${PORT}` },
   { name: "read", path: "./index.html" },
+  { name: "read", path: "./help.txt" },
 );
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -109,6 +110,16 @@ const handler = async (req, _) => {
       }
       const content = await getPanelContent(name);
       return response(200, content);
+    } else if (req.method === "GET" && path === "/") {
+      const f = await Deno.open("./index.html", { read: true });
+      return new Response(f.readable, {headers: {
+          "Content-Type": "text/html",
+      }});
+    } else if (req.method === "GET" && path === "/help.txt") {
+      const f = await Deno.open("./help.txt", { read: true });
+      return new Response(f.readable, {headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+      }});
     } else {
       return response404();
     }
